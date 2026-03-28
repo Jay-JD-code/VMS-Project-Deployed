@@ -59,7 +59,6 @@ const SYSTEM_STYLES = `
   ::-webkit-scrollbar-thumb { background: var(--muted-3); border-radius: 10px; }
   ::-webkit-scrollbar-thumb:hover { background: var(--muted-2); }
 
-  /* paper texture */
   body::after {
     content: '';
     position: fixed; inset: 0; pointer-events: none; z-index: 9999;
@@ -69,7 +68,7 @@ const SYSTEM_STYLES = `
 
   .app-shell { display: flex; min-height: 100vh; background: var(--cream); }
 
-  /* Sidebar slot: let the Sidebar component control its own width */
+  /* ── Sidebar slot ── */
   .app-sidebar-slot {
     flex-shrink: 0;
     position: fixed; left: 0; top: 0; bottom: 0; z-index: 40;
@@ -77,7 +76,7 @@ const SYSTEM_STYLES = `
     box-shadow: 1px 0 0 var(--border), 4px 0 24px rgba(26,21,16,0.06);
   }
 
-  /* Main column offset is now driven by a CSS variable the sidebar updates */
+  /* ── Main column ── */
   .app-main-col {
     flex: 1; min-width: 0;
     margin-left: var(--sidebar-current-w, var(--sidebar-w));
@@ -86,6 +85,7 @@ const SYSTEM_STYLES = `
     transition: margin-left 0.2s;
   }
 
+  /* ── Topbar ── */
   .app-topbar-slot {
     height: var(--topbar-h); flex-shrink: 0;
     position: relative; z-index: 30;
@@ -94,6 +94,7 @@ const SYSTEM_STYLES = `
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     display: flex; align-items: center;
+    overflow: hidden;
   }
   .app-topbar-slot::after {
     content: ''; position: absolute; bottom: -1px; left: 0;
@@ -126,16 +127,58 @@ const SYSTEM_STYLES = `
     background: radial-gradient(circle, rgba(200,169,110,0.06) 0%, transparent 70%);
   }
 
-  @media (max-width: 768px) {
-    .app-sidebar-slot { transform: translateX(-100%); transition: transform 0.3s; }
-    .app-main-col { margin-left: 0; }
-    .app-content { padding: 20px 18px 60px; }
+  /* ── Hamburger button (mobile only) ── */
+  .mobile-menu-btn {
+    display: none;
+    align-items: center; justify-content: center;
+    width: 34px; height: 34px; flex-shrink: 0;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    margin-left: 14px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .mobile-menu-btn:hover { background: var(--accent-dim); color: var(--accent); }
+
+  /* ── Backdrop ── */
+  .mobile-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(26,21,16,0.45);
+    z-index: 39;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    animation: fade-in 0.2s ease;
+  }
+  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+  /* ── Mobile overrides ── */
+  @media (max-width: 767px) {
+    .app-sidebar-slot {
+      transform: translateX(-100%);
+      transition: transform 0.25s cubic-bezier(0.16,1,0.3,1);
+      box-shadow: none;
+    }
+    .app-sidebar-slot.mobile-open {
+      transform: translateX(0);
+      box-shadow: 4px 0 32px rgba(26,21,16,0.18);
+    }
+    .app-main-col           { margin-left: 0 !important; }
+    .app-content            { padding: 20px 16px 60px; }
+    .mobile-menu-btn        { display: flex; }
+    .topbar-user-name       { display: none !important; }
+    .stat-grid-6,
+    .stat-grid-4            { grid-template-columns: repeat(2, 1fr) !important; }
+    .dash-columns           { grid-template-columns: 1fr !important; }
+    .perf-grid              { grid-template-columns: repeat(2, 1fr) !important; }
   }
 `;
 
 export default function AppLayout({ children, title, subtitle }: AppLayoutProps) {
-  const [loaded, setLoaded] = useState(false);
-  const [shimmer, setShimmer] = useState(false);
+  const [loaded, setLoaded]         = useState(false);
+  const [shimmer, setShimmer]       = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const prevTitle = useRef(title);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -157,23 +200,67 @@ export default function AppLayout({ children, title, subtitle }: AppLayoutProps)
     if (prevTitle.current !== title) {
       prevTitle.current = title;
       setShimmer(true);
+      setMobileOpen(false);
       scrollRef.current?.scrollTo({ top: 0, behavior: "instant" });
     }
   }, [title]);
 
+  // Close sidebar when resizing back to desktop
+  useEffect(() => {
+    const onResize = () => { if (window.innerWidth >= 768) setMobileOpen(false); };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  // Lock body scroll when mobile drawer is open
+  useEffect(() => {
+    document.body.style.overflow = mobileOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [mobileOpen]);
+
   return (
     <div className="app-shell">
       <div className="app-corner-deco" />
-      {/* Sidebar owns its own width — slot is unsized */}
-      <aside className="app-sidebar-slot">
-        <Sidebar />
+
+      {/* Backdrop */}
+      {mobileOpen && (
+        <div
+          className="mobile-backdrop"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Sidebar — CSS handles slide-in/out on mobile */}
+      <aside className={`app-sidebar-slot ${mobileOpen ? "mobile-open" : ""}`}>
+        <Sidebar onMobileClose={() => setMobileOpen(false)} />
       </aside>
+
       <div className="app-main-col">
         <header className={`app-topbar-slot ${loaded ? "loaded" : ""}`}>
-          {shimmer && <div className="app-shimmer" onAnimationEnd={() => setShimmer(false)} />}
-          {/* TopBar is the single source of truth for the topbar content */}
-          <TopBar title={title} subtitle={subtitle} />
+          {shimmer && (
+            <div className="app-shimmer" onAnimationEnd={() => setShimmer(false)} />
+          )}
+
+          {/* Hamburger — CSS hides it on desktop */}
+          <button
+            className="mobile-menu-btn"
+            onClick={() => setMobileOpen(true)}
+            aria-label="Open navigation"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path
+                d="M2 4h12M2 8h12M2 12h12"
+                stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"
+              />
+            </svg>
+          </button>
+
+          {/* TopBar fills remaining width */}
+          <div style={{ flex: 1, minWidth: 0, height: "100%" }}>
+            <TopBar title={title} subtitle={subtitle} />
+          </div>
         </header>
+
         <div className="app-scroll" ref={scrollRef}>
           <main className="app-content" key={title}>{children}</main>
         </div>
