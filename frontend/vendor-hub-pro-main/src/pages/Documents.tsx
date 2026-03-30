@@ -106,14 +106,24 @@ export default function Documents() {
     uploadMutation.mutate({ file, vendorId: effectiveVendorId, docType: uploadDocType });
   };
 
-  const handleDownload = async (id: number, fileName: string) => {
-    const res = await documentApi.download(id);
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = fileName; a.click();
-  };
-
+const handleDownload = async (id: number, fileName: string) => {
+  // Step 1: Get the pre-signed S3 URL from backend
+  const res = await documentApi.download(id);
+  const data = await res.json(); // backend returns { downloadUrl: "https://s3..." } or just the URL string
+  
+  // Step 2: Fetch the actual file from S3
+  const s3Url = typeof data === 'string' ? data : data.downloadUrl || data.url || data;
+  const fileRes = await fetch(s3Url);
+  const blob = await fileRes.blob();
+  
+  // Step 3: Download it
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(url);
+};
   const totalDocs = (documents as any[]).length;
   const pendingDocs = (documents as any[]).filter(d => !(d as any).status || (d as any).status === "PENDING").length;
   const approvedDocs = (documents as any[]).filter(d => (d as any).status === "APPROVED").length;
