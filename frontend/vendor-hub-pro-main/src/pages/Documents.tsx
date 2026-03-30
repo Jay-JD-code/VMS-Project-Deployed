@@ -107,12 +107,11 @@ export default function Documents() {
   };
 
 const handleDownload = async (id: number, fileName: string) => {
-  // Step 1: Get the pre-signed S3 URL from backend
+  // Step 1: Get the pre-signed S3 URL from backend (returns plain string)
   const res = await documentApi.download(id);
-  const data = await res.json(); // backend returns { downloadUrl: "https://s3..." } or just the URL string
+  const s3Url = await res.text(); // use .text() instead of .json()
   
   // Step 2: Fetch the actual file from S3
-  const s3Url = typeof data === 'string' ? data : data.downloadUrl || data.url || data;
   const fileRes = await fetch(s3Url);
   const blob = await fileRes.blob();
   
