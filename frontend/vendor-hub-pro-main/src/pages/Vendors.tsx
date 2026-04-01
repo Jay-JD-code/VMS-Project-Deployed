@@ -18,7 +18,6 @@ export default function Vendors() {
   const [statusFilter, setStatusFilter] = useState<VendorStatus | "ALL">("ALL");
   const [showAddForm, setShowAddForm] = useState(false);
   const [form, setForm] = useState<VendorRequest>({ ...emptyForm });
-  // ✅ Track which vendor is pending delete confirmation
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const { data: vendors = mockVendors, isLoading } = useQuery({
@@ -56,7 +55,6 @@ export default function Vendors() {
     onError: (err: Error) => toast.error(err.message || "Failed to reject vendor"),
   });
 
-  // ✅ Delete mutation — only for REJECTED vendors, only for ADMIN
   const deleteMutation = useMutation({
     mutationFn: (id: string) => vendorApi.delete(id),
     onSuccess: () => {
@@ -73,6 +71,11 @@ export default function Vendors() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.companyName.trim()) { toast.error("Company name is required"); return; }
+    // ✅ Validate phone is exactly 10 digits if provided
+    if (form.phone && form.phone.length !== 10) {
+      toast.error("Phone number must be exactly 10 digits");
+      return;
+    }
     createMutation.mutate(form);
   };
 
@@ -132,30 +135,90 @@ export default function Vendors() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-medium text-foreground mb-1">Company Name *</label>
-              <input value={form.companyName} onChange={(e) => setForm({ ...form, companyName: e.target.value })} className="w-full h-8 px-3 text-xs bg-background border border-input rounded-md focus:outline-none focus:ring-1 focus:ring-ring" required />
+              <input
+                value={form.companyName}
+                onChange={(e) => setForm({ ...form, companyName: e.target.value })}
+                className="w-full h-8 px-3 text-xs bg-background border border-input rounded-md focus:outline-none focus:ring-1 focus:ring-ring"
+                required
+              />
             </div>
             <div>
               <label className="block text-xs font-medium text-foreground mb-1">Contact Person</label>
-              <input value={form.contactPerson} onChange={(e) => setForm({ ...form, contactPerson: e.target.value })} className="w-full h-8 px-3 text-xs bg-background border border-input rounded-md focus:outline-none focus:ring-1 focus:ring-ring" />
+              <input
+                value={form.contactPerson}
+                onChange={(e) => setForm({ ...form, contactPerson: e.target.value })}
+                className="w-full h-8 px-3 text-xs bg-background border border-input rounded-md focus:outline-none focus:ring-1 focus:ring-ring"
+              />
             </div>
             <div>
               <label className="block text-xs font-medium text-foreground mb-1">Email</label>
-              <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full h-8 px-3 text-xs bg-background border border-input rounded-md focus:outline-none focus:ring-1 focus:ring-ring" />
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                className="w-full h-8 px-3 text-xs bg-background border border-input rounded-md focus:outline-none focus:ring-1 focus:ring-ring"
+              />
             </div>
             <div>
-              <label className="block text-xs font-medium text-foreground mb-1">Phone</label>
-              <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full h-8 px-3 text-xs bg-background border border-input rounded-md focus:outline-none focus:ring-1 focus:ring-ring" />
+              <label className="block text-xs font-medium text-foreground mb-1">
+                Phone
+                {/* ✅ Live digit counter */}
+                <span className={`ml-1 font-normal ${form.phone.length === 10 ? "text-green-600" : "text-muted-foreground"}`}>
+                  ({form.phone.length}/10)
+                </span>
+              </label>
+              <input
+                value={form.phone}
+                // ✅ Only allow digits, max 10 characters
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                  setForm({ ...form, phone: digits });
+                }}
+                inputMode="numeric"
+                maxLength={10}
+                placeholder="10-digit number"
+                className={`w-full h-8 px-3 text-xs bg-background border rounded-md focus:outline-none focus:ring-1 focus:ring-ring transition-colors ${
+                  form.phone.length > 0 && form.phone.length < 10
+                    ? "border-amber-400 focus:ring-amber-400"
+                    : form.phone.length === 10
+                    ? "border-green-400 focus:ring-green-400"
+                    : "border-input"
+                }`}
+              />
+              {/* ✅ Inline hint */}
+              {form.phone.length > 0 && form.phone.length < 10 && (
+                <p className="text-[11px] text-amber-600 mt-0.5">
+                  {10 - form.phone.length} more digit{10 - form.phone.length !== 1 ? "s" : ""} needed
+                </p>
+              )}
+              {form.phone.length === 10 && (
+                <p className="text-[11px] text-green-600 mt-0.5">✓ Valid phone number</p>
+              )}
             </div>
             <div className="md:col-span-2">
               <label className="block text-xs font-medium text-foreground mb-1">Address</label>
-              <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="w-full h-8 px-3 text-xs bg-background border border-input rounded-md focus:outline-none focus:ring-1 focus:ring-ring" />
+              <input
+                value={form.address}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
+                className="w-full h-8 px-3 text-xs bg-background border border-input rounded-md focus:outline-none focus:ring-1 focus:ring-ring"
+              />
             </div>
           </div>
           <div className="flex gap-2 mt-3">
-            <button type="submit" disabled={createMutation.isPending} className="h-8 px-4 bg-primary text-primary-foreground text-xs font-medium rounded-md hover:opacity-90 disabled:opacity-50">
+            <button
+              type="submit"
+              disabled={createMutation.isPending}
+              className="h-8 px-4 bg-primary text-primary-foreground text-xs font-medium rounded-md hover:opacity-90 disabled:opacity-50"
+            >
               {createMutation.isPending ? "Submitting..." : "Submit"}
             </button>
-            <button type="button" onClick={() => setShowAddForm(false)} className="h-8 px-4 bg-muted text-muted-foreground text-xs font-medium rounded-md hover:bg-muted/80">Cancel</button>
+            <button
+              type="button"
+              onClick={() => setShowAddForm(false)}
+              className="h-8 px-4 bg-muted text-muted-foreground text-xs font-medium rounded-md hover:bg-muted/80"
+            >
+              Cancel
+            </button>
           </div>
         </form>
       )}
@@ -191,8 +254,6 @@ export default function Vendors() {
                   <td className="text-muted-foreground">{vendor.createdAt}</td>
                   <td>
                     <div className="flex items-center gap-2">
-
-                      {/* PENDING — Approve + Reject */}
                       {vendor.status === "PENDING" && canApproveVendors && (
                         <>
                           <button
@@ -212,10 +273,8 @@ export default function Vendors() {
                         </>
                       )}
 
-                      {/* ✅ REJECTED — Delete button (admin only, with confirmation) */}
                       {vendor.status === "REJECTED" && canApproveVendors && (
                         confirmDeleteId === vendor.id ? (
-                          // Inline confirmation — prevents accidental deletes
                           <div className="flex items-center gap-1.5">
                             <span className="text-xs text-muted-foreground">Sure?</span>
                             <button
@@ -242,7 +301,6 @@ export default function Vendors() {
                           </button>
                         )
                       )}
-
                     </div>
                   </td>
                 </tr>

@@ -9,7 +9,7 @@ import { toast } from "sonner";
 
 const METHOD_META: Record<string, { icon: string; short: string }> = {
   BANK_TRANSFER: { icon: "🏦", short: "Bank" },
-  CHECK: { icon: "📝", short: "Check" },
+  CHECK: { icon: "📝", short: "Cheque" },
   CREDIT_CARD: { icon: "💳", short: "Card" },
   WIRE: { icon: "⚡", short: "Wire" },
 };

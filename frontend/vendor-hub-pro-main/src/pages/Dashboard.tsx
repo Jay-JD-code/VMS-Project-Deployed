@@ -461,11 +461,11 @@ export default function Dashboard() {
         {statsLoading && <div className="dash-loading" />}
 
         <div className="dash-header anim">
-          <div>
+          {/* <div>
             <div className="dash-eyebrow">Overview</div>
             <h1 className="dash-title">Dashboard</h1>
             <p className="dash-subtitle">Overview of vendor management activities</p>
-          </div>
+          </div> */}
           <div className="dash-live-pill">
             <span className="dash-live-dot" /> Live · {now}
           </div>
